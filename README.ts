@@ -46,9 +46,9 @@ const theCargoToml: CargoToml = parse(CargoTomlSchema, await $`yj -t < Cargo.tom
 const { package: { name, metadata: { details: { title } } } } = theCargoToml
 const theCargoMetadata: CargoMetadata = parse(CargoMetadataSchema, await $`cargo metadata --format-version 1`)
 const thePackageMetadata = theCargoMetadata.packages.find((p) => p.name == name)
-assert(thePackageMetadata, "Could not find package metadata")
+assert(thePackageMetadata, 'Could not find package metadata')
 const target = thePackageMetadata.targets[0]
-assert(target, "Could not find package first target")
+assert(target, 'Could not find package first target')
 const doc = await $`cargo doc2readme --template README.jl --target-name ${target.name} --out -`
 const repo: Repo = parse(RepoSchema, await $`gh repo view --json url`)
 
@@ -73,10 +73,10 @@ ${doc.stdout}
 ## Installation
 
 \`\`\`shell
-cargo add ${name} url
+cargo add ${name} tracing_error
 \`\`\`
 
-**Important:** add the \`url\` crate too.
+**Important:** add the \`tracing_error\` crate too.
 
 ## Gratitude
 
