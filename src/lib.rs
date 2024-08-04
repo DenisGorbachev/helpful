@@ -56,6 +56,7 @@
 //! ```
 //!
 
+use std::backtrace::{Backtrace, BacktraceStatus};
 use std::error::Error as StdError;
 use std::fmt;
 use std::fmt::{Debug, Display};
@@ -64,35 +65,43 @@ use std::result::Result as StdResult;
 
 use tracing_error::SpanTrace;
 
-/// This type doesn't implement the `Error` trait because it conflicts with a blanket `From<E>` implementation (which allows converting any error to this type).
+/// This type doesn't implement the `Error` trait because it conflicts with a blanket `From<E>` implementation (which allows converting any error to this type). This is the same reason why `anyhow::Error` doesn't implement `Error`.
 #[derive(Debug)]
 pub struct Error {
     pub source: Box<dyn StdError + Send + Sync + 'static>,
-    pub trace: SpanTrace,
+    pub span_trace: SpanTrace,
+    pub backtrace: Backtrace,
 }
 
 impl Error {
-    pub fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.pad("Error: ")?;
-        Display::fmt(self.source.as_ref(), f)?;
-        f.pad("\n")?;
-        f.pad("Trace:\n")?;
-        Display::fmt(&self.trace, f)
+    pub fn new<E: StdError + Send + Sync + 'static>(source: E) -> Self {
+        Self {
+            source: Box::new(source),
+            span_trace: SpanTrace::capture(),
+            backtrace: Backtrace::capture(),
+        }
     }
 }
 
 impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        Self::fmt(self, f)
+        f.pad("Error: ")?;
+        Display::fmt(self.source.as_ref(), f)?;
+        f.pad("\n\n")?;
+        f.pad("Span trace:\n")?;
+        Display::fmt(&self.span_trace, f)?;
+        if let BacktraceStatus::Captured = self.backtrace.status() {
+            f.pad("\n\n")?;
+            f.pad("Backtrace:\n")?;
+            Display::fmt(&self.backtrace, f)?;
+        }
+        Ok(())
     }
 }
 
 impl<E: StdError + Send + Sync + 'static> From<E> for Error {
-    fn from(value: E) -> Self {
-        Self {
-            source: Box::new(value),
-            trace: SpanTrace::capture(),
-        }
+    fn from(source: E) -> Self {
+        Self::new(source)
     }
 }
 
