@@ -1,26 +1,58 @@
-//! The [`helpful::Error`](Error) is an upgraded version of [`anyhow::Error`].
+//! The [`helpful::Error`] is an upgraded version of [`anyhow::Error`].
 //! It provides additional information from the current span trace.
 //! This information can be used to diagnose the root cause of the error, which simplifies debugging & provides helpful error messages to the users.
 //!
-//! Features:
+//! # Compare
 //!
-//! * [x] Can be propagated up the call stack, just like [`anyhow::Error`]
-//! * [x] Can be constructed from external error types, just like [`anyhow::Error`]
-//! * [x] Captures the current tracing span, just like [`tracing_error::TracedError<E>`]
+//! ## Anyhow
 //!
-//! Benefits:
+//! ```shell
+//! $ cargo run --quiet --example simple_anyhow -- --config some/non-existent/config.json
+//! Error: No such file or directory (os error 2)
+//! ```
 //!
-//! * Provides a detailed span trace to the user (which makes it easier to diagnose the root cause of the error)
-//! * Provides a detailed span trace to the developer (which simplifies debugging)
+//! No extra information is provided - the user has to guess what went wrong.
 //!
-//! Advantages over [`anyhow::Error`]:
+//! ## Helpful
 //!
-//! * Provides additional information from the current span trace
+//! ```shell
+//! $ cargo run --quiet --example simple_helpful -- --config some/non-existent/config.json
+//! Error: No such file or directory (os error 2)
 //!
-//! Advantages over [`tracing_error::TracedError<E>`]:
+//! Call history (recent first):
+//!    0: config::load
+//!            with path="some/non-existent/config.json"
+//!              at examples/simple_helpful.rs:42
+//!    1: cli::run
+//!            with self=Cli { config: "some/non-existent/config.json" }
+//!              at examples/simple_helpful.rs:28
+//! ```
 //!
-//! * Can be propagated up the call stack with `?` operator (no explicit conversion needed). This is because [`Error`] doesn't have any generic arguments, so you can call any function that returns a `Result<T, TracingError>` and apply a `?` operator to the result. By contrast, [`tracing_error::TracedError<E>`] is generic over `E`, so you can't compose the functions that return different `Result<T, TracedError<E>>`.
+//! Extra information is provided - the user can figure out that the error happened in `config::load` because `some/non-existent/config.json` does not exist.
 //!
+//! Note: the examples above assume `RUST_BACKTRACE=0`. If you set `RUST_BACKTRACE=1`, both `anyhow` and `helpful` will display a full backtrace.
+//!
+//! # Features
+//!
+//! * ✅ Can be propagated up the call stack, just like [`anyhow::Error`]
+//! * ✅ Can be constructed from existing error types, just like [`anyhow::Error`]
+//! * ✅ Captures the current tracing span, just like [`tracing_error::TracedError<E>`]
+//!
+//! # Benefits
+//!
+//! * Provides a detailed span trace to the user (which makes it easier to diagnose the root cause of the error).
+//! * Provides a detailed span trace to the developer (which simplifies debugging).
+//!
+//! # Advantages over [`anyhow::Error`]
+//!
+//! * Provides additional information from the current span trace.
+//!
+//! # Advantages over [`tracing_error::TracedError<E>`]
+//!
+//! * Can be propagated up the call stack with `?` operator (no explicit conversion needed). This is because [`helpful::Error`] doesn't have any generic arguments, so you can compose the functions that return a [`helpful::Result<T>`] with the `?` operator. By contrast, [`tracing_error::TracedError<E>`] is generic over `E`, so you can't compose the functions that return different `Result<T, TracedError<E>>`.
+//!
+//! [`helpful::Error`]: Error
+//! [`helpful::Result<T>`]: Result
 //! [`anyhow::Error`]: https://docs.rs/anyhow/latest/anyhow/struct.Error.html
 //! [`tracing_error::TracedError<E>`]: https://docs.rs/tracing-error/latest/tracing_error/struct.TracedError.html
 //!
@@ -44,13 +76,12 @@
 //!    use tracing::level_filters::LevelFilter;
 //!    use tracing_error::ErrorLayer;
 //!    use tracing_subscriber::layer::SubscriberExt;
+//!
 //!    let env_filter = tracing_subscriber::EnvFilter::builder().with_default_directive(LevelFilter::INFO.into()).from_env_lossy();
 //!    let subscriber = tracing_subscriber::fmt()
 //!        .with_env_filter(env_filter)
-//!        // .with_max_level(tracing::Level::TRACE) // Set the maximum log level to TRACE
 //!        .finish()
 //!        .with(ErrorLayer::default());
-//!    // dbg!(&subscriber);
 //!    subscriber.init();
 //!}
 //! ```
@@ -65,6 +96,8 @@ use std::result::Result as StdResult;
 
 use tracing_error::SpanTrace;
 
+/// The main `Error` type that provides additional information via `SpanTrace`.
+///
 /// This type doesn't implement the `Error` trait because it conflicts with a blanket `From<E>` implementation (which allows converting any error to this type). This is the same reason why `anyhow::Error` doesn't implement `Error`.
 #[derive(Debug)]
 pub struct Error {
@@ -88,7 +121,7 @@ impl Display for Error {
         f.pad("Error: ")?;
         Display::fmt(self.source.as_ref(), f)?;
         f.pad("\n\n")?;
-        f.pad("Span trace:\n")?;
+        f.pad("Call history (recent first):\n")?;
         Display::fmt(&self.span_trace, f)?;
         if let BacktraceStatus::Captured = self.backtrace.status() {
             f.pad("\n\n")?;
@@ -105,6 +138,7 @@ impl<E: StdError + Send + Sync + 'static> From<E> for Error {
     }
 }
 
+/// A type alias for `Result`, analogous to `anyhow::Result`
 pub type Result<T = ()> = StdResult<T, Error>;
 
 pub trait Traced {
@@ -121,6 +155,7 @@ impl<T, E: Into<Error>> Traced for StdResult<T, E> {
     }
 }
 
+/// A return type for `main` that automatically displays the error (see examples)
 pub enum MainResult<T = (), E = Error> {
     Ok(T),
     Err(E),

@@ -2,16 +2,16 @@
 name = "helpful"
 version = "0.1.0"
 edition = "2021"
-description = "A better anyhow::Error with a more descriptive error message"
+description = "Better anyhow::Error with a more descriptive error message"
 license = "Apache-2.0 OR MIT"
-homepage = "https://github.com/DenisGorbachev/yes-but-why"
-repository = "https://github.com/DenisGorbachev/yes-but-why"
+homepage = "https://github.com/DenisGorbachev/helpful"
+repository = "https://github.com/DenisGorbachev/helpful"
 readme = "README.md"
 keywords = ["error", "error-handling", "utils"]
 categories = ["rust-patterns", "development-tools"]
 
 [package.metadata.details]
-title = "A better anyhow::Error with a more descriptive error message"
+title = "Better anyhow::Error with a more descriptive error message"
 tagline = ""
 summary = ""
 announcement = ""
