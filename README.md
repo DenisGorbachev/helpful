@@ -156,7 +156,7 @@ cargo add helpful tracing_error
 
 ## Gratitude
 
-Like the project? [Say thanks!](https://github.com/DenisGorbachev/helpful/discussions/new?category=gratitude) ❤️
+Like the project? [⭐ Star this repo](https://github.com/DenisGorbachev/helpful) on GitHub!
 
 ## License
 
