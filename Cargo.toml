@@ -8,7 +8,7 @@ homepage = "https://github.com/DenisGorbachev/helpful"
 repository = "https://github.com/DenisGorbachev/helpful"
 readme = "README.md"
 keywords = ["error", "error-handling", "utils"]
-categories = ["rust-patterns", "development-tools"]
+categories = ["rust-patterns", "development-tools", "no-std"]
 
 [package.metadata.details]
 title = "Better anyhow::Error with a more descriptive error message"
@@ -27,3 +27,11 @@ serde = { version = "1.0.204", features = ["derive"] }
 serde_json = "1.0.122"
 clap = { version = "4.5.13", features = ["derive"] }
 anyhow = "1.0.86"
+
+[features]
+default = ["std"]
+std = []
+
+[[example]]
+name = "simple_helpful"
+required-features = ["std"]

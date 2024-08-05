@@ -1,36 +1,35 @@
 //! The [`helpful::Error`] is an upgraded version of [`anyhow::Error`].
-//! It provides additional information from the current span trace.
-//! This information can be used to diagnose the root cause of the error, which simplifies debugging & provides helpful error messages to the users.
+//! It provides extra information to users and developers, which simplifies debugging & diagnosing the root cause.
 //!
 //! # Compare
 //!
 //! ## Anyhow
 //!
 //! ```shell
-//! $ cargo run --quiet --example simple_anyhow -- --config some/non-existent/config.json
+//! $ example_anyhow --config some/config.json
 //! Error: No such file or directory (os error 2)
 //! ```
 //!
-//! No extra information is provided - the user has to guess what went wrong.
+//! No extra information is provided - we have to guess what went wrong.
 //!
 //! ## Helpful
 //!
 //! ```shell
-//! $ cargo run --quiet --example simple_helpful -- --config some/non-existent/config.json
+//! $ example_helpful --config some/config.json
 //! Error: No such file or directory (os error 2)
 //!
 //! Call history (recent first):
 //!    0: config::load
-//!            with path="some/non-existent/config.json"
+//!            with path="some/config.json"
 //!              at examples/simple_helpful.rs:42
 //!    1: cli::run
-//!            with self=Cli { config: "some/non-existent/config.json" }
+//!            with self=Cli { config: "some/config.json" }
 //!              at examples/simple_helpful.rs:28
 //! ```
 //!
-//! Extra information is provided - the user can figure out that the error happened in `config::load` because `some/non-existent/config.json` does not exist.
+//! Extra information is provided - we can see that the error happened in `config::load` because `some/config.json` does not exist.
 //!
-//! Note: the examples above assume `RUST_BACKTRACE=0`. If you set `RUST_BACKTRACE=1`, both `anyhow` and `helpful` will display a full backtrace.
+//! Note: if you set `RUST_BACKTRACE=1`, both `anyhow` and `helpful` will display a full backtrace. However, the backtrace doesn't contain the values of the function arguments, so `helpful` will display both the span trace and the backtrace.
 //!
 //! # Features
 //!
@@ -43,31 +42,37 @@
 //! * Provides a detailed span trace to the user (which makes it easier to diagnose the root cause of the error).
 //! * Provides a detailed span trace to the developer (which simplifies debugging).
 //!
-//! # Advantages over [`anyhow::Error`]
+//! # Comparison with [`anyhow::Error`]
+//!
+//! **Advantages:**
 //!
 //! * Provides additional information from the current span trace.
 //!
-//! # Advantages over [`tracing_error::TracedError<E>`]
+//! **Disadvantages:**
+//!
+//! * Uses `Box<dyn Error>` instead of a slim pointer (this will be improved in the future release).
+//!
+//! # Comparison with [`tracing_error::TracedError<E>`]
+//!
+//! **Advantages:**
 //!
 //! * Can be propagated up the call stack with `?` operator (no explicit conversion needed). This is because [`helpful::Error`] doesn't have any generic arguments, so you can compose the functions that return a [`helpful::Result<T>`] with the `?` operator. By contrast, [`tracing_error::TracedError<E>`] is generic over `E`, so you can't compose the functions that return different `Result<T, TracedError<E>>`.
 //!
-//! [`helpful::Error`]: Error
-//! [`helpful::Result<T>`]: Result
-//! [`anyhow::Error`]: https://docs.rs/anyhow/latest/anyhow/struct.Error.html
-//! [`tracing_error::TracedError<E>`]: https://docs.rs/tracing-error/latest/tracing_error/struct.TracedError.html
+//! **Disadvantages:**
+//!
+//! * Uses `Box<dyn Error>` instead of a slim pointer (this will be improved in the future release).
 //!
 //! # Setup
 //!
-//! * Initialize the tracing subscriber in `main`
-//! * Ensure the default level is set to `Level::INFO` (or modify your `instrument` attributes to collect the data at another level)
+//! * Initialize the tracing subscriber in `main`.
+//! * Ensure the tracing subscriber has an [`ErrorLayer`](tracing_error::ErrorLayer).
+//! * Ensure the default level is set to `Level::INFO` (or modify your `instrument` attributes to collect the data at a higher level).
 //!
-//! # **Important setup note**
-//!
-//! If you don't see any tracing spans in the error message, check your tracing subscriber configuration. Here's an example of a correct configuration:
+//! Example:
 //!
 //! ```
 //! fn main() {
-//!     init_tracing_subscriber();
+//!    init_tracing_subscriber();
 //!     // your code here
 //! }
 //!
@@ -83,18 +88,77 @@
 //!        .finish()
 //!        .with(ErrorLayer::default());
 //!    subscriber.init();
-//!}
+//! }
 //! ```
 //!
+//! # Important setup note
+//!
+//! If you don't see any tracing spans in the error message, check your tracing subscriber configuration (see "[Setup](#setup)" for an example of a correct configuration).
+//!
+//! ## No-std support
+//!
+//! You can use this crate in `no_std` environment by disabling `default-features`:
+//!
+//! ```toml
+//! [dependencies]
+//! helpful = { version = "0.1.0", default-features = false }
+//! ```
+//!
+//! The no_std mode enables the internal `StdError` trait which is a replacement for `std::error::Error`.
+//! Since the `?`-based error conversions would normally rely on the `std::error::Error`, no_std mode will require an explicit `.map_err()`.
+//!
+//! # Tips
+//!
+//! ## Formatting
+//!
+//! You can format the fields using `Display` instead of `Debug` using the `%` symbol:
+//!
+//! ```
+//! use std::fmt::{Display, Formatter};
+//! use tracing::instrument;
+//! #
+//! # pub struct Url;
+//! #
+//! # impl Display for Url {
+//! #   fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+//! #       todo!()
+//! #   }
+//! # }
+//!
+//! #[instrument(fields(url = %url))]
+//! pub fn load(url: &Url) -> helpful::Result<String> {
+//!     todo!()
+//! }
+//! ```
+//!
+//! [`helpful::Error`]: Error
+//! [`helpful::Result<T>`]: Result
+//! [`anyhow::Error`]: https://docs.rs/anyhow/latest/anyhow/struct.Error.html
+//! [`tracing_error::TracedError<E>`]: https://docs.rs/tracing-error/latest/tracing_error/struct.TracedError.html
+//!
 
+#![cfg_attr(not(feature = "std"), no_std)]
+
+extern crate alloc;
+
+use alloc::boxed::Box;
+use core::fmt::{Debug, Display};
+use core::result::Result as StdResult;
+#[cfg(feature = "std")]
 use std::backtrace::{Backtrace, BacktraceStatus};
+#[cfg(feature = "std")]
 use std::error::Error as StdError;
-use std::fmt;
-use std::fmt::{Debug, Display};
+#[cfg(feature = "std")]
 use std::process::{ExitCode, Termination};
-use std::result::Result as StdResult;
 
 use tracing_error::SpanTrace;
+
+#[cfg(not(feature = "std"))]
+pub trait StdError: Debug + Display {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        None
+    }
+}
 
 /// The main `Error` type that provides additional information via `SpanTrace`.
 ///
@@ -103,6 +167,7 @@ use tracing_error::SpanTrace;
 pub struct Error {
     pub source: Box<dyn StdError + Send + Sync + 'static>,
     pub span_trace: SpanTrace,
+    #[cfg(feature = "std")]
     pub backtrace: Backtrace,
 }
 
@@ -111,18 +176,20 @@ impl Error {
         Self {
             source: Box::new(source),
             span_trace: SpanTrace::capture(),
+            #[cfg(feature = "std")]
             backtrace: Backtrace::capture(),
         }
     }
 }
 
 impl Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.pad("Error: ")?;
         Display::fmt(self.source.as_ref(), f)?;
         f.pad("\n\n")?;
         f.pad("Call history (recent first):\n")?;
         Display::fmt(&self.span_trace, f)?;
+        #[cfg(feature = "std")]
         if let BacktraceStatus::Captured = self.backtrace.status() {
             f.pad("\n\n")?;
             f.pad("Backtrace:\n")?;
@@ -141,6 +208,7 @@ impl<E: StdError + Send + Sync + 'static> From<E> for Error {
 /// A type alias for `Result`, analogous to `anyhow::Result`
 pub type Result<T = ()> = StdResult<T, Error>;
 
+/// An extension trait to convert `Result` to `helpful::Result`
 pub trait Traced {
     type Output;
 
@@ -170,6 +238,7 @@ impl<T, E> From<StdResult<T, E>> for MainResult<T, E> {
     }
 }
 
+#[cfg(feature = "std")]
 impl<T: Termination, E: Display> Termination for MainResult<T, E> {
     fn report(self) -> ExitCode {
         match self {

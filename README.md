@@ -8,38 +8,37 @@
 [![Documentation](https://docs.rs/helpful/badge.svg)](https://docs.rs/helpful)
 
 The [`helpful::Error`][__link0] is an upgraded version of [`anyhow::Error`][__link1].
-It provides additional information from the current span trace.
-This information can be used to diagnose the root cause of the error, which simplifies debugging & provides helpful error messages to the users.
+It provides extra information to users and developers, which simplifies debugging & diagnosing the root cause.
 
 ## Compare
 
 ### Anyhow
 
 ```shell
-$ cargo run --quiet --example simple_anyhow -- --config some/non-existent/config.json
+$ example_anyhow --config some/config.json
 Error: No such file or directory (os error 2)
 ```
 
-No extra information is provided - the user has to guess what went wrong.
+No extra information is provided - we have to guess what went wrong.
 
 ### Helpful
 
 ```shell
-$ cargo run --quiet --example simple_helpful -- --config some/non-existent/config.json
+$ example_helpful --config some/config.json
 Error: No such file or directory (os error 2)
 
 Call history (recent first):
    0: config::load
-           with path="some/non-existent/config.json"
+           with path="some/config.json"
              at examples/simple_helpful.rs:42
    1: cli::run
-           with self=Cli { config: "some/non-existent/config.json" }
+           with self=Cli { config: "some/config.json" }
              at examples/simple_helpful.rs:28
 ```
 
-Extra information is provided - the user can figure out that the error happened in `config::load` because `some/non-existent/config.json` does not exist.
+Extra information is provided - we can see that the error happened in `config::load` because `some/config.json` does not exist.
 
-Note: the examples above assume `RUST_BACKTRACE=0`. If you set `RUST_BACKTRACE=1`, both `anyhow` and `helpful` will display a full backtrace.
+Note: if you set `RUST_BACKTRACE=1`, both `anyhow` and `helpful` will display a full backtrace. However, the backtrace doesn’t contain the values of the function arguments, so `helpful` will display both the span trace and the backtrace.
 
 ## Features
 
@@ -52,26 +51,37 @@ Note: the examples above assume `RUST_BACKTRACE=0`. If you set `RUST_BACKTRACE=1
 * Provides a detailed span trace to the user (which makes it easier to diagnose the root cause of the error).
 * Provides a detailed span trace to the developer (which simplifies debugging).
 
-## Advantages over [`anyhow::Error`][__link5]
+## Comparison with [`anyhow::Error`][__link5]
+
+**Advantages:**
 
 * Provides additional information from the current span trace.
 
-## Advantages over [`tracing_error::TracedError<E>`][__link6]
+**Disadvantages:**
+
+* Uses `Box<dyn Error>` instead of a slim pointer (this will be improved in the future release).
+
+## Comparison with [`tracing_error::TracedError<E>`][__link6]
+
+**Advantages:**
 
 * Can be propagated up the call stack with `?` operator (no explicit conversion needed). This is because [`helpful::Error`][__link7] doesn’t have any generic arguments, so you can compose the functions that return a [`helpful::Result<T>`][__link8] with the `?` operator. By contrast, [`tracing_error::TracedError<E>`][__link9] is generic over `E`, so you can’t compose the functions that return different `Result<T, TracedError<E>>`.
 
+**Disadvantages:**
+
+* Uses `Box<dyn Error>` instead of a slim pointer (this will be improved in the future release).
+
 ## Setup
 
-* Initialize the tracing subscriber in `main`
-* Ensure the default level is set to `Level::INFO` (or modify your `instrument` attributes to collect the data at another level)
+* Initialize the tracing subscriber in `main`.
+* Ensure the tracing subscriber has an [`ErrorLayer`][__link10].
+* Ensure the default level is set to `Level::INFO` (or modify your `instrument` attributes to collect the data at a higher level).
 
-## **Important setup note**
-
-If you don’t see any tracing spans in the error message, check your tracing subscriber configuration. Here’s an example of a correct configuration:
+Example:
 
 ```rust
 fn main() {
-    init_tracing_subscriber();
+   init_tracing_subscriber();
     // your code here
 }
 
@@ -90,9 +100,42 @@ fn init_tracing_subscriber() {
 }
 ```
 
-   [__cargo_doc2readme_dependencies_info]: ggGkYW0BYXSEGyMws-dKI-LpG9swkVXG-rikGwSuJGhB0NVbG974QPrPJF6XYXKEG_0b0HUsdiBqG71JWhz8tQKeG38zfrRUuePfG6RkYYOxsnANYWSBgmdoZWxwZnVsZTAuMS4w
+## Important setup note
+
+If you don’t see any tracing spans in the error message, check your tracing subscriber configuration (see “[Setup](#setup)” for an example of a correct configuration).
+
+### No-std support
+
+You can use this crate in `no_std` environment by disabling `default-features`:
+
+```toml
+[dependencies]
+helpful = { version = "0.1.0", default-features = false }
+```
+
+The no_std mode enables the internal `StdError` trait which is a replacement for `std::error::Error`.
+Since the `?`-based error conversions would normally rely on the `std::error::Error`, no_std mode will require an explicit `.map_err()`.
+
+## Tips
+
+### Formatting
+
+You can format the fields using `Display` instead of `Debug` using the `%` symbol:
+
+```rust
+use std::fmt::{Display, Formatter};
+use tracing::instrument;
+
+#[instrument(fields(url = %url))]
+pub fn load(url: &Url) -> helpful::Result<String> {
+    todo!()
+}
+```
+
+   [__cargo_doc2readme_dependencies_info]: ggGkYW0BYXSEGyMws-dKI-LpG9swkVXG-rikGwSuJGhB0NVbG974QPrPJF6XYXKEG4D4a25ndkhxGz1E551Bk0FbG_D8FcoQTPCzGy6lUZQALK6kYWSCgmdoZWxwZnVsZTAuMS4wgm10cmFjaW5nX2Vycm9yZTAuMi4w
  [__link0]: https://docs.rs/helpful/latest/helpful/struct.Error.html
  [__link1]: https://docs.rs/anyhow/latest/anyhow/struct.Error.html
+ [__link10]: https://docs.rs/tracing_error/0.2.0/tracing_error/?search=ErrorLayer
  [__link2]: https://docs.rs/anyhow/latest/anyhow/struct.Error.html
  [__link3]: https://docs.rs/anyhow/latest/anyhow/struct.Error.html
  [__link4]: https://docs.rs/tracing-error/latest/tracing_error/struct.TracedError.html
