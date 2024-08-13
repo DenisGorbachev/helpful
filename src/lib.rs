@@ -160,6 +160,10 @@ pub trait StdError: Debug + Display {
     }
 }
 
+mod wrapper;
+
+pub use wrapper::*;
+
 /// The main `Error` type that provides additional information via `SpanTrace`.
 ///
 /// This type doesn't implement the `Error` trait because it conflicts with a blanket `From<E>` implementation (which allows converting any error to this type). This is the same reason why `anyhow::Error` doesn't implement `Error`.
@@ -179,6 +183,15 @@ impl Error {
             #[cfg(feature = "std")]
             backtrace: Backtrace::capture(),
         }
+    }
+
+    #[cold]
+    #[must_use]
+    pub fn msg<M>(message: M) -> Self
+    where
+        M: Display + Debug + Send + Sync + 'static,
+    {
+        Self::new(MessageError(message))
     }
 }
 
@@ -248,6 +261,91 @@ impl<T: Termination, E: Display> Termination for MainResult<T, E> {
                 // std::io::attempt_print_to_stderr(format_args_nl!("Error: {err:?}"));
                 eprintln!("{}", error);
                 ExitCode::FAILURE
+            }
+        }
+    }
+}
+
+// TODO: Implement more sophisticated branches (like in anyhow)
+#[macro_export]
+macro_rules! error {
+    ($msg:literal $(,)?) => {
+        $crate::__private::must_use({
+            let error = $crate::__private::format_err($crate::__private::format_args!($msg));
+            error
+        })
+    };
+    ($fmt:expr, $($arg:tt)*) => {
+        $crate::Error::msg($crate::__private::format!($fmt, $($arg)*))
+    };
+}
+
+// Not public API. Referenced by macro-generated code.
+// Copied from `anyhow` with omissions
+#[doc(hidden)]
+pub mod __private {
+    use self::not::Bool;
+    use crate::Error;
+    use alloc::fmt;
+    use core::fmt::Arguments;
+
+    #[doc(hidden)]
+    pub use alloc::format;
+    #[doc(hidden)]
+    pub use core::result::Result::Err;
+    #[doc(hidden)]
+    pub use core::{concat, format_args, stringify};
+
+    #[doc(hidden)]
+    #[inline]
+    #[cold]
+    pub fn format_err(args: Arguments) -> Error {
+        // #[cfg(anyhow_no_fmt_arguments_as_str)]
+        // let fmt_arguments_as_str = None::<&str>;
+        // #[cfg(not(anyhow_no_fmt_arguments_as_str))]
+        // Stable in Rust 1.52
+        let fmt_arguments_as_str = args.as_str();
+
+        if let Some(message) = fmt_arguments_as_str {
+            // error!("literal"), can downcast to &'static str
+            Error::msg(message)
+        } else {
+            // error!("interpolate {var}"), can downcast to String
+            Error::msg(fmt::format(args))
+        }
+    }
+
+    #[doc(hidden)]
+    #[inline]
+    #[cold]
+    #[must_use]
+    pub fn must_use(error: Error) -> Error {
+        error
+    }
+
+    #[doc(hidden)]
+    #[inline]
+    pub fn not(cond: impl Bool) -> bool {
+        cond.not()
+    }
+
+    mod not {
+        #[doc(hidden)]
+        pub trait Bool {
+            fn not(self) -> bool;
+        }
+
+        impl Bool for bool {
+            #[inline]
+            fn not(self) -> bool {
+                !self
+            }
+        }
+
+        impl Bool for &bool {
+            #[inline]
+            fn not(self) -> bool {
+                !*self
             }
         }
     }
