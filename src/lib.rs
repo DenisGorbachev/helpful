@@ -268,7 +268,7 @@ impl<T: Termination, E: Display> Termination for MainResult<T, E> {
 
 // TODO: Implement more sophisticated branches (like in anyhow)
 #[macro_export]
-macro_rules! error {
+macro_rules! helpful {
     ($msg:literal $(,)?) => {
         $crate::__private::must_use({
             let error = $crate::__private::format_err($crate::__private::format_args!($msg));
