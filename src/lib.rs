@@ -67,6 +67,7 @@
 //! * Initialize the tracing subscriber in `main`.
 //! * Ensure the tracing subscriber has an [`ErrorLayer`](tracing_error::ErrorLayer).
 //! * Ensure the default level is set to `Level::INFO` (or modify your `instrument` attributes to collect the data at a higher level).
+//! * Optional: if you are going to use the example below, please run `cargo add tracing-subscriber --features env-filter`
 //!
 //! Example:
 //!

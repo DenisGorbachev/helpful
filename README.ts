@@ -1,9 +1,9 @@
 #!/usr/bin/env -S deno run --allow-read --allow-run=bash,git,cargo --allow-env --allow-sys
 
 import * as zx from "npm:zx"
-import { z, ZodSchema } from "https://deno.land/x/zod@v3.23.8/mod.ts"
-import { assertEquals } from "https://jsr.io/@std/assert/1.0.0/equals.ts"
-import { assert } from "https://jsr.io/@std/assert/1.0.0/assert.ts"
+import {z, ZodSchema} from "https://deno.land/x/zod@v3.23.8/mod.ts"
+import {assertEquals} from "https://jsr.io/@std/assert/1.0.0/equals.ts"
+import {assert} from "https://jsr.io/@std/assert/1.0.0/assert.ts"
 
 const CargoTomlSchema = z.object({
   package: z.object({
@@ -39,11 +39,11 @@ const RepoSchema = z.object({
 
 type Repo = z.infer<typeof RepoSchema>
 
-const $ = zx.$({ cwd: import.meta.dirname })
+const $ = zx.$({cwd: import.meta.dirname})
 const parse = <T>(schema: ZodSchema<T>, input: zx.ProcessOutput) => schema.parse(JSON.parse(input.stdout))
 
 const theCargoToml: CargoToml = parse(CargoTomlSchema, await $`yj -t < Cargo.toml`)
-const { package: { name, metadata: { details: { title } } } } = theCargoToml
+const {package: {name, metadata: {details: {title}}}} = theCargoToml
 const theCargoMetadata: CargoMetadata = parse(CargoMetadataSchema, await $`cargo metadata --format-version 1`)
 const thePackageMetadata = theCargoMetadata.packages.find((p) => p.name == name)
 assert(thePackageMetadata, 'Could not find package metadata')
@@ -75,6 +75,8 @@ ${doc.stdout}
 \`\`\`shell
 # add peer dependencies
 cargo add tracing tracing-subscriber tracing-error
+# optional: enable the \`env-filter\` feature if you want to use the \`init_tracing_subscriber\` function from the documentation
+cargo add tracing-subscriber --features env-filter
 # add the crate
 cargo add ${name}
 \`\`\`

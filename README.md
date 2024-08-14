@@ -76,6 +76,7 @@ Note: if you set `RUST_BACKTRACE=1`, both `anyhow` and `helpful` will display a 
 * Initialize the tracing subscriber in `main`.
 * Ensure the tracing subscriber has an [`ErrorLayer`][__link10].
 * Ensure the default level is set to `Level::INFO` (or modify your `instrument` attributes to collect the data at a higher level).
+* Optional: if you are going to use the example below, please run `cargo add tracing-subscriber --features env-filter`
 
 Example:
 
@@ -132,7 +133,7 @@ pub fn load(url: &Url) -> helpful::Result<String> {
 }
 ```
 
-   [__cargo_doc2readme_dependencies_info]: ggGkYW0BYXSEGyMws-dKI-LpG9swkVXG-rikGwSuJGhB0NVbG974QPrPJF6XYXKEG4D4a25ndkhxGz1E551Bk0FbG_D8FcoQTPCzGy6lUZQALK6kYWSCgmdoZWxwZnVsZTAuMS4wgm10cmFjaW5nX2Vycm9yZTAuMi4w
+   [__cargo_doc2readme_dependencies_info]: ggGkYW0BYXSEGyMws-dKI-LpG9swkVXG-rikGwSuJGhB0NVbG974QPrPJF6XYXKEG8h4QcWHZv_8G45WYemxhTWEG2K9Te2sA93MG_7O_YAWPnveYWSCgmdoZWxwZnVsZTAuMS4wgm10cmFjaW5nX2Vycm9yZTAuMi4w
  [__link0]: https://docs.rs/helpful/latest/helpful/struct.Error.html
  [__link1]: https://docs.rs/anyhow/latest/anyhow/struct.Error.html
  [__link10]: https://docs.rs/tracing_error/0.2.0/tracing_error/?search=ErrorLayer
@@ -151,6 +152,8 @@ pub fn load(url: &Url) -> helpful::Result<String> {
 ```shell
 # add peer dependencies
 cargo add tracing tracing-subscriber tracing-error
+# optional: enable the `env-filter` feature if you want to use the `init_tracing_subscriber` function from the documentation
+cargo add tracing-subscriber --features env-filter
 # add the crate
 cargo add helpful
 ```
