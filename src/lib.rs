@@ -140,9 +140,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc;
+extern crate core;
 
 use alloc::boxed::Box;
-use core::fmt::{Debug, Display};
+use core::fmt::{Debug, Display, Formatter};
 use core::result::Result as StdResult;
 #[cfg(feature = "std")]
 use std::backtrace::{Backtrace, BacktraceStatus};
@@ -167,7 +168,6 @@ pub use wrapper::*;
 /// The main `Error` type that provides additional information via `SpanTrace`.
 ///
 /// This type doesn't implement the `Error` trait because it conflicts with a blanket `From<E>` implementation (which allows converting any error to this type). This is the same reason why `anyhow::Error` doesn't implement `Error`.
-#[derive(Debug)]
 pub struct Error {
     pub source: Box<dyn StdError + Send + Sync + 'static>,
     pub span_trace: SpanTrace,
@@ -197,18 +197,32 @@ impl Error {
 
 impl Display for Error {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.pad("Error: ")?;
-        Display::fmt(self.source.as_ref(), f)?;
-        f.pad("\n\n")?;
-        f.pad("Call history (recent first):\n")?;
-        Display::fmt(&self.span_trace, f)?;
-        #[cfg(feature = "std")]
-        if let BacktraceStatus::Captured = self.backtrace.status() {
-            f.pad("\n\n")?;
-            f.pad("Backtrace:\n")?;
-            Display::fmt(&self.backtrace, f)?;
+        if f.alternate() {
+            Display::fmt(self.source.as_ref(), f)
+        } else {
+            f.pad("Error: ")?;
+            Debug::fmt(self, f)
         }
-        Ok(())
+    }
+}
+
+impl Debug for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        if f.alternate() {
+            Debug::fmt(self.source.as_ref(), f)
+        } else {
+            Display::fmt(self.source.as_ref(), f)?;
+            f.pad("\n\n")?;
+            f.pad("Call history (recent first):\n")?;
+            Display::fmt(&self.span_trace, f)?;
+            #[cfg(feature = "std")]
+            if let BacktraceStatus::Captured = self.backtrace.status() {
+                f.pad("\n\n")?;
+                f.pad("Backtrace:\n")?;
+                Display::fmt(&self.backtrace, f)?;
+            }
+            Ok(())
+        }
     }
 }
 

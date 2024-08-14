@@ -149,10 +149,11 @@ pub fn load(url: &Url) -> helpful::Result<String> {
 ## Installation
 
 ```shell
-cargo add helpful tracing_error
+# add peer dependencies
+cargo add tracing tracing-subscriber tracing-error
+# add the crate
+cargo add helpful
 ```
-
-**Important:** add the `tracing_error` crate too.
 
 ## Gratitude
 

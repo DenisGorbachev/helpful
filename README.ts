@@ -73,10 +73,11 @@ ${doc.stdout}
 ## Installation
 
 \`\`\`shell
-cargo add ${name} tracing_error
+# add peer dependencies
+cargo add tracing tracing-subscriber tracing-error
+# add the crate
+cargo add ${name}
 \`\`\`
-
-**Important:** add the \`tracing_error\` crate too.
 
 ## Gratitude
 
