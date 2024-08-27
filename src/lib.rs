@@ -295,6 +295,34 @@ macro_rules! helpful {
     };
 }
 
+// Not public API. This is used in the implementation of some of the other
+// macros, in which the must_use call is not needed because the value is known
+// to be used.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __helpful {
+    ($msg:literal $(,)?) => {
+        let error = $crate::__private::format_err($crate::__private::format_args!($msg));
+        error
+    };
+    ($fmt:expr, $($arg:tt)*) => {
+        $crate::Error::msg($crate::__private::format!($fmt, $($arg)*))
+    };
+}
+
+#[macro_export]
+macro_rules! bail {
+    ($msg:literal $(,)?) => {
+        return $crate::__private::Err($crate::__helpful!($msg))
+    };
+    ($err:expr $(,)?) => {
+        return $crate::__private::Err($crate::__helpful!($err))
+    };
+    ($fmt:expr, $($arg:tt)*) => {
+        return $crate::__private::Err($crate::__helpful!($fmt, $($arg)*))
+    };
+}
+
 // Not public API. Referenced by macro-generated code.
 // Copied from `anyhow` with omissions
 #[doc(hidden)]
