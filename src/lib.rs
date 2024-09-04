@@ -162,8 +162,8 @@ use core::result::Result as StdResult;
 use std::backtrace::{Backtrace, BacktraceStatus};
 #[cfg(feature = "std")]
 use std::error::Error as StdError;
-#[cfg(feature = "std")]
-use std::process::{ExitCode, Termination};
+// #[cfg(feature = "std")]
+// use std::process::Termination;
 
 use tracing_error::SpanTrace;
 
@@ -174,8 +174,10 @@ pub trait StdError: Debug + Display {
     }
 }
 
+mod result_ext;
 mod wrapper;
 
+pub use result_ext::*;
 pub use wrapper::*;
 
 /// The main `Error` type that provides additional information via `SpanTrace`.
@@ -248,50 +250,35 @@ impl<E: StdError + Send + Sync + 'static> From<E> for Error {
 /// A type alias for `Result`, analogous to `anyhow::Result`
 pub type Result<T = ()> = StdResult<T, Error>;
 
-/// An extension trait to convert `Result` to `helpful::Result`
-pub trait Traced {
-    type Output;
-
-    fn traced(self) -> Self::Output;
-}
-
-impl<T, E: Into<Error>> Traced for StdResult<T, E> {
-    type Output = StdResult<T, Error>;
-
-    fn traced(self) -> Self::Output {
-        self.map_err(Into::into)
-    }
-}
-
-/// A return type for `main` that automatically displays the error (see examples)
-pub enum MainResult<T = (), E = Error> {
-    Ok(T),
-    Err(E),
-}
-
-impl<T, E> From<StdResult<T, E>> for MainResult<T, E> {
-    fn from(value: StdResult<T, E>) -> Self {
-        match value {
-            Ok(value) => MainResult::Ok(value),
-            Err(error) => MainResult::Err(error),
-        }
-    }
-}
-
-#[cfg(feature = "std")]
-impl<T: Termination, E: Display> Termination for MainResult<T, E> {
-    fn report(self) -> ExitCode {
-        match self {
-            MainResult::Ok(value) => value.report(),
-            MainResult::Err(error) => {
-                // TODO: attempt_print_to_stderr is private, need a workaround
-                // std::io::attempt_print_to_stderr(format_args_nl!("Error: {err:?}"));
-                eprintln!("{}", error);
-                ExitCode::FAILURE
-            }
-        }
-    }
-}
+// /// A return type for `main` that automatically displays the error (see examples)
+// pub enum MainResult<T = (), E = Error> {
+//     Ok(T),
+//     Err(E),
+// }
+//
+// impl<T, E> From<StdResult<T, E>> for MainResult<T, E> {
+//     fn from(value: StdResult<T, E>) -> Self {
+//         match value {
+//             Ok(value) => MainResult::Ok(value),
+//             Err(error) => MainResult::Err(error),
+//         }
+//     }
+// }
+//
+// #[cfg(feature = "std")]
+// impl<T: Termination, E: Display> Termination for MainResult<T, E> {
+//     fn report(self) -> ExitCode {
+//         match self {
+//             MainResult::Ok(value) => value.report(),
+//             MainResult::Err(error) => {
+//                 // TODO: attempt_print_to_stderr is private, need a workaround
+//                 // std::io::attempt_print_to_stderr(format_args_nl!("Error: {err:?}"));
+//                 eprintln!("{}", error);
+//                 ExitCode::FAILURE
+//             }
+//         }
+//     }
+// }
 
 // TODO: Implement more sophisticated branches (like in anyhow)
 #[macro_export]

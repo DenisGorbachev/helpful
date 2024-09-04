@@ -13,9 +13,9 @@ use init_tracing_subscriber::init_tracing_subscriber;
 mod init_tracing_subscriber;
 
 #[tokio::main]
-async fn main() -> helpful::MainResult {
+async fn main() -> helpful::Result {
     init_tracing_subscriber();
-    Cli::parse().run().await.into()
+    Cli::parse().run().await
 }
 
 #[derive(Parser, Debug)]
