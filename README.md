@@ -133,7 +133,19 @@ pub fn load(url: &Url) -> helpful::Result<String> {
 }
 ```
 
-   [__cargo_doc2readme_dependencies_info]: ggGkYW0BYXSEGyMws-dKI-LpG9swkVXG-rikGwSuJGhB0NVbG974QPrPJF6XYXKEG8h4QcWHZv_8G45WYemxhTWEG2K9Te2sA93MG_7O_YAWPnveYWSCgmdoZWxwZnVsZTAuMS4wgm10cmFjaW5nX2Vycm9yZTAuMi4w
+You can format paths using `.display()` call with the `%` symbol:
+
+```rust
+use std::path::Path;
+use tracing::instrument;
+
+#[instrument(fields(path = %path.as_ref().display()))]
+pub fn get_content(path: impl AsRef<Path>) -> helpful::Result<String> {
+    todo!()
+}
+```
+
+   [__cargo_doc2readme_dependencies_info]: ggGkYW0BYXSEGyMws-dKI-LpG9swkVXG-rikGwSuJGhB0NVbG974QPrPJF6XYXKEG2O67LmN0ZMoG7XwGzNr2qmpG9m-WSUmrbjbG8GFmzgdpL6BYWSCgmdoZWxwZnVsZTAuMS4wgm10cmFjaW5nX2Vycm9yZTAuMi4w
  [__link0]: https://docs.rs/helpful/latest/helpful/struct.Error.html
  [__link1]: https://docs.rs/anyhow/latest/anyhow/struct.Error.html
  [__link10]: https://docs.rs/tracing_error/0.2.0/tracing_error/?search=ErrorLayer

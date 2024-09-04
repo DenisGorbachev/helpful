@@ -132,6 +132,18 @@
 //! }
 //! ```
 //!
+//! You can format paths using `.display()` call with the `%` symbol:
+//!
+//! ```
+//! use std::path::Path;
+//! use tracing::instrument;
+//!
+//! #[instrument(fields(path = %path.as_ref().display()))]
+//! pub fn get_content(path: impl AsRef<Path>) -> helpful::Result<String> {
+//!     todo!()
+//! }
+//! ```
+//!
 //! [`helpful::Error`]: Error
 //! [`helpful::Result<T>`]: Result
 //! [`anyhow::Error`]: https://docs.rs/anyhow/latest/anyhow/struct.Error.html
