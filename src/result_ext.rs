@@ -1,5 +1,5 @@
 use crate::Error;
-use std::result::Result as StdResult;
+use core::result::Result as CoreResult;
 
 /// An extension trait to convert `Result` to `helpful::Result`
 pub trait ResultExt {
@@ -8,7 +8,7 @@ pub trait ResultExt {
     fn helpful(self) -> Self::Output;
 }
 
-impl<T, E: Into<Error>> ResultExt for StdResult<T, E> {
+impl<T, E: Into<Error>> ResultExt for CoreResult<T, E> {
     type Output = crate::Result<T>;
 
     fn helpful(self) -> Self::Output {
