@@ -5,9 +5,8 @@
 # Better anyhow::Error with a more descriptive error message
 
 [![Build](https://github.com/DenisGorbachev/helpful/actions/workflows/ci.yml/badge.svg)](https://github.com/DenisGorbachev/helpful)
-[![Documentation](https://docs.rs/helpful/badge.svg)](https://docs.rs/helpful)
 
-The [`helpful::Error`][__link0] is an upgraded version of [`anyhow::Error`][__link1].
+The `helpful::Error` is an upgraded version of [`anyhow::Error`][__link1].
 It provides extra information to users and developers, which simplifies debugging & diagnosing the root cause.
 
 ## Compare
@@ -65,7 +64,7 @@ Note: if you set `RUST_BACKTRACE=1`, both `anyhow` and `helpful` will display a 
 
 **Advantages:**
 
-* Can be propagated up the call stack with `?` operator (no explicit conversion needed). This is because [`helpful::Error`][__link7] doesn’t have any generic arguments, so you can compose the functions that return a [`helpful::Result<T>`][__link8] with the `?` operator. By contrast, [`tracing_error::TracedError<E>`][__link9] is generic over `E`, so you can’t compose the functions that return different `Result<T, TracedError<E>>`.
+* Can be propagated up the call stack with `?` operator (no explicit conversion needed). This is because `helpful::Error` doesn’t have any generic arguments, so you can compose the functions that return a `helpful::Result<T>` with the `?` operator. By contrast, [`tracing_error::TracedError<E>`][__link9] is generic over `E`, so you can’t compose the functions that return different `Result<T, TracedError<E>>`.
 
 **Disadvantages:**
 
@@ -145,19 +144,23 @@ pub fn get_content(path: impl AsRef<Path>) -> helpful::Result<String> {
 }
 ```
 
-   [__cargo_doc2readme_dependencies_info]: ggGkYW0BYXSEGyMws-dKI-LpG9swkVXG-rikGwSuJGhB0NVbG974QPrPJF6XYXKEG2O67LmN0ZMoG7XwGzNr2qmpG9m-WSUmrbjbG8GFmzgdpL6BYWSCgmdoZWxwZnVsZTAuMS4wgm10cmFjaW5nX2Vycm9yZTAuMi4w
- [__link0]: https://docs.rs/helpful/latest/helpful/struct.Error.html
- [__link1]: https://docs.rs/anyhow/latest/anyhow/struct.Error.html
- [__link10]: https://docs.rs/tracing_error/0.2.0/tracing_error/?search=ErrorLayer
- [__link2]: https://docs.rs/anyhow/latest/anyhow/struct.Error.html
- [__link3]: https://docs.rs/anyhow/latest/anyhow/struct.Error.html
- [__link4]: https://docs.rs/tracing-error/latest/tracing_error/struct.TracedError.html
- [__link5]: https://docs.rs/anyhow/latest/anyhow/struct.Error.html
- [__link6]: https://docs.rs/tracing-error/latest/tracing_error/struct.TracedError.html
- [__link7]: https://docs.rs/helpful/latest/helpful/struct.Error.html
- [__link8]: https://docs.rs/helpful/latest/helpful/type.Result.html
- [__link9]: https://docs.rs/tracing-error/latest/tracing_error/struct.TracedError.html
+[__cargo_doc2readme_dependencies_info]: ggGkYW0BYXSEGyMws-dKI-LpG9swkVXG-rikGwSuJGhB0NVbG974QPrPJF6XYXKEG2O67LmN0ZMoG7XwGzNr2qmpG9m-WSUmrbjbG8GFmzgdpL6BYWSCgmdoZWxwZnVsZTAuMS4wgm10cmFjaW5nX2Vycm9yZTAuMi4w
 
+[__link1]: https://docs.rs/anyhow/latest/anyhow/struct.Error.html
+
+[__link10]: https://docs.rs/tracing_error/0.2.0/tracing_error/?search=ErrorLayer
+
+[__link2]: https://docs.rs/anyhow/latest/anyhow/struct.Error.html
+
+[__link3]: https://docs.rs/anyhow/latest/anyhow/struct.Error.html
+
+[__link4]: https://docs.rs/tracing-error/latest/tracing_error/struct.TracedError.html
+
+[__link5]: https://docs.rs/anyhow/latest/anyhow/struct.Error.html
+
+[__link6]: https://docs.rs/tracing-error/latest/tracing_error/struct.TracedError.html
+
+[__link9]: https://docs.rs/tracing-error/latest/tracing_error/struct.TracedError.html
 
 ## Installation
 
