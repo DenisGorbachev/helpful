@@ -1,7 +1,7 @@
 [package]
 name = "helpful"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 description = "Better anyhow::Error with a more descriptive error message"
 license = "Apache-2.0 OR MIT"
 homepage = "https://github.com/DenisGorbachev/helpful"
