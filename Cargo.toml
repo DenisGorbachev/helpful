@@ -2,6 +2,7 @@
 name = "helpful"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.85.0"
 description = "Better anyhow::Error with a more descriptive error message"
 license = "Apache-2.0 OR MIT"
 homepage = "https://github.com/DenisGorbachev/helpful"

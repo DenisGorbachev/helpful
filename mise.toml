@@ -1,65 +1,102 @@
-min_version = "2025.1.14"
+min_version = "2026.4.8"
+
+[settings]
+idiomatic_version_file_enable_tools = ["rust"]
+
+[plugins]
+fnox-env = "https://github.com/jdx/mise-env-fnox"
 
 [tools]
-rust = "1.89.0"
-node = "22.12.0"
+node = "24.15.0"
 deno = "1.46.1"
+fnox = "1.21.0"
 cargo-binstall = "1.10.15"
 "npm:lefthook" = "1.8.5"
 "npm:@commitlint/config-conventional" = "19.6.0"
 "npm:@commitlint/cli" = "19.6.0"
 "npm:@commitlint/types" = "19.5.0"
-"npm:remark-cli" = "12.0.1"
-"npm:remark-validate-links" = "8.0.0"
-"npm:remark-lint-no-dead-urls" = "1.1.0"
-"cargo:https://github.com/DenisGorbachev/cargo-doc2readme" = "branch:dev"
-"cargo:cargo-sort" = "1.0.9"
+"npm:repomix" = "1.5.0"
+"cargo:cargo-insert-docs" = "1.6.0"
 "cargo:cargo-hack" = "0.6.33"
-"cargo:cargo-machete" = "0.7.0"
 "cargo:cargo-nextest" = "0.9.102"
+"cargo:cargo-expand" = "1.0.114"
+"cargo:rumdl" = "0.1.0"
+
+[env]
+_.fnox-env = { tools = true }
 
 [tasks."build"]
-run = "cargo build"
-
-[tasks."fmt"]
-run = "cargo fmt --all"
+run = "cargo build --workspace"
 
 [tasks."lint"]
-depends = ["lint:code", "lint:docs", "lint:deps"]
+depends = ["lint:code", "lint:docs"]
+
+[tasks."lint:code"]
+run = "cargo clippy --workspace --all-targets --all-features -- -D warnings"
+
+[tasks."lint:docs"]
+run = "rumdl check"
 
 [tasks."test"]
 depends = ["test:code", "test:docs"]
 
-[tasks."lint:code"]
-run = "cargo clippy --all-targets --all-features -- -D warnings"
-
-[tasks."lint:docs"]
-run = "mise run remark ."
-
-[tasks."lint:deps"]
-run = "cargo machete --with-metadata"
-
 [tasks."test:code"]
-run = "cargo nextest run --all-features --no-tests warn"
+run = "cargo nextest run --workspace --all-features --no-tests warn"
+
+[tasks."test:code:integration"]
+# see also: "agent:test:code:integration"
+# `--test-threads 1` because integration tests must be run sequentially
+run = "mise run test:code -- --ignore-default-filter --max-fail 1 --test-threads 1 'integration_tests::'"
+
+[tasks."test:code:slow"]
+# see also: "agent:test:code:slow"
+# `--test-threads` is omitted because slow tests may be run in parallel
+run = "mise run test:code -- --ignore-default-filter --max-fail 1 'slow_tests::'"
 
 [tasks."test:docs"]
-run = "cargo test --doc --all-features --no-fail-fast --quiet"
-
-[tasks."sort:deps"]
-run = "cargo sort"
-
-[tasks."check"]
-run = "cargo check --all-targets --all-features"
+run = "cargo test --workspace --doc --all-features --no-fail-fast --quiet"
 
 [tasks."fix"]
-depends = ["fix:code", "fix:deps"]
+# run the tasks in parallel because they modify different files
+depends = ["fix:code", "fix:docs", "fix:agents"]
 
 [tasks."fix:code"]
-env = { __CARGO_FIX_YOLO = 'yeah' }
-run = "cargo clippy --fix --allow-dirty --allow-staged"
+# run the tasks sequentially because they modify the same files
+run = """
+mise run fix:code:warnings
+mise run fix:code:style
+"""
 
-[tasks."fix:deps"]
-run = "cargo machete --with-metadata --fix"
+[tasks."fix:code:warnings"]
+# second pass is needed because "cargo clippy --fix" exits with 0 even if some warnings remain
+env = { __CARGO_FIX_YOLO = 'yeah' }
+run = """
+cargo clippy --workspace --all-targets --all-features --fix --allow-dirty --allow-staged
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+"""
+
+[tasks."fix:code:style"]
+run = "cargo fmt --all"
+
+[tasks."fix:docs"]
+# `rumdl check --fix` may modify any file, so we need to stage all markdown files.
+# use `rumdl check --fix` instead of `rumdl fmt` because `rumdl check --fix` exits with 1 if errors remain (since v0.1.0)
+# use a quoted git pathspec so ignored files (e.g. `*.local.md`) don't fail the task.
+run = """
+rumdl check --fix
+git add -- '*.md'
+"""
+
+[tasks."fix:agents"]
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+mise run gen:agents
+if [ -f AGENTS.md ]; then
+  # add AGENTS.md manually because it may not have been staged
+  git add AGENTS.md
+fi
+"""
 
 [tasks."watch"]
 run = """
@@ -72,27 +109,59 @@ cargo watch --clear --watch "$PWD" --exec "$CMD_NO_WHITESPACE" "$@"
 """
 
 [tasks."gen:readme"]
-run = "./README.ts --output README.md"
+run = "touch README.md && chmod 0644 README.md && ./README.ts --output README.md"
 
-[tasks."remark"]
-run = """
-#!/usr/bin/env bash
-set -euo pipefail
-REMARK_VALIDATE_LINKS="$(mise where npm:remark-validate-links)/lib/node_modules/remark-validate-links/index.js"
-REMARK_LINT_NO_DEAD_URLS="$(mise where npm:remark-lint-no-dead-urls)/lib/node_modules/remark-lint-no-dead-urls/index.js"
-remark --ignore-path .gitignore --ignore-pattern CHANGELOG.md --quiet --frail --no-stdout --use "$REMARK_VALIDATE_LINKS" --use "$REMARK_LINT_NO_DEAD_URLS" "$@"
-"""
+[tasks."gen:agents"]
+run = "touch AGENTS.md && chmod 0644 AGENTS.md && ./AGENTS.ts --output AGENTS.md"
 
 [tasks."commitlint"]
 run = "commitlint --extends \"$(mise where npm:@commitlint/config-conventional)/lib/node_modules/@commitlint/config-conventional/lib/index.js\""
 
+[tasks."repomix"]
+usage = """
+arg "<file>"
+arg "[rest]" var=#true
+"""
+run = """
+#!/usr/bin/env bash
+set -xeuo pipefail
+dir=$MISE_PROJECT_ROOT
+file=$usage_file
+header=$(taplo get -f "$dir/Cargo.toml" "package.description")
+# `--no-git-sort-by-changes` stabilizes file order across invocations
+repomix \
+    --include src,tests,examples \
+    --no-file-summary \
+    --no-directory-structure \
+    --no-git-sort-by-changes \
+    --header-text "$header" \
+    --output "$file" \
+    {{arg(name="rest")}} \
+    "$@" \
+    $dir
+"""
+
+[tasks."agent:docs:list"]
+run = "[ -d .agents/docs ] && find .agents/docs -type f -print || true"
+quiet = true
+
 [tasks."agent:on:stop"]
-depends = ["agent:test", "lint", "fmt", "sort:deps"]
+depends = ["fix", "agent:test"]
 
 [tasks."agent:test"]
-depends = ["agent:test:code", "test:docs"]
+depends = ["agent:test:code", "agent:test:code:integration", "agent:test:code:slow", "test:docs"]
 
 [tasks."agent:test:code"]
 # don't include `--fail-fast` because it's better to let the agent see all failures
 # reduce output to save tokens
 run = "mise run test:code -- --cargo-quiet --hide-progress-bar --status-level fail --final-status-level flaky"
+
+[tasks."agent:test:code:integration"]
+# see also: "test:code:integration"
+# `--test-threads 1` because integration tests must be run sequentially
+run = "mise run agent:test:code -- --ignore-default-filter --max-fail 1 --test-threads 1 'integration_tests::'"
+
+[tasks."agent:test:code:slow"]
+# see also: "test:code:slow"
+# `--test-threads` is omitted because slow tests may be run in parallel
+run = "mise run agent:test:code -- --ignore-default-filter --max-fail 1 'slow_tests::'"
