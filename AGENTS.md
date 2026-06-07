@@ -630,8 +630,8 @@ required-features = ["std"]
 if_missing = "error"
 
 [providers]
-keychain = { type = "keychain", service = "rust-pre-public-lib-template" }
-pass = { type = "password-store", prefix = "rust-pre-public-lib-template/" }
+keychain = { type = "keychain", service = "helpful" }
+pass = { type = "password-store", prefix = "helpful/" }
 ```
 
 ### src/lib.rs
