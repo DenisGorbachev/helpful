@@ -1,22 +1,66 @@
-[package]
-name = "helpful"
+[workspace]
+resolver = "3"
+
+[workspace.package]
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85.0"
-description = "Better anyhow::Error with a more descriptive error message"
-license = "Apache-2.0 OR MIT"
 homepage = "https://github.com/DenisGorbachev/helpful"
 repository = "https://github.com/DenisGorbachev/helpful"
-readme = "README.md"
 keywords = ["error", "error-handling", "utils"]
 categories = ["rust-patterns", "development-tools", "no-std"]
+exclude = [
+    ".*",
+    "*.local.*",
+    "doc/dev",
+    "specs",
+    "AGENTS.ts",
+    "README.ts",
+    "AGENTS*.md",
+    "CLAUDE*.md",
+    "deno.lock",
+    "deno.json",
+    "commitlint.config.mjs",
+    "fnox.toml",
+    "mise.toml",
+    "rumdl.toml",
+    "rustfmt.toml",
+    ".yolobox"
+]
+
+[workspace.metadata.details]
+name = "helpful"
+title = "Better anyhow::Error with a more descriptive error message"
+readme = { generate = false }
+
+[workspace.lints.rust]
+redundant_imports = "deny"
+unused_import_braces = "deny"
+# unused_qualifications must not be "deny" because our code style has multiple `use Foo::*;`, and some macros (derive_more::Display, strum::Display, strum::EnumString) produce code with full qualifications
+# unused_qualifications = "deny"
+
+[workspace.lints.clippy]
+absolute_paths = "deny"
+arithmetic_side_effects = "deny"
+
+[package]
+name = "helpful"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Better anyhow::Error with a more descriptive error message"
+license = "Apache-2.0 OR MIT"
+homepage.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+exclude.workspace = true
 
 [package.metadata.details]
 title = "Better anyhow::Error with a more descriptive error message"
-tagline = ""
-summary = ""
-announcement = ""
-readme = { generate = false }
+
+[lints]
+workspace = true
 
 [dependencies]
 tracing-error = "0.2.0"

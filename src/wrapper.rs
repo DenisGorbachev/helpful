@@ -4,9 +4,6 @@
 use crate::StdError;
 use core::fmt::{self, Debug, Display};
 
-#[cfg(feature = "std")]
-use alloc::boxed::Box;
-
 #[repr(transparent)]
 pub struct MessageError<M>(pub M);
 

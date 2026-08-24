@@ -151,14 +151,13 @@
 //!
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![deny(clippy::arithmetic_side_effects)]
-#![cfg_attr(not(test), deny(unused_crate_dependencies))]
 
 extern crate alloc;
 extern crate core;
 
+#[cfg(not(feature = "std"))]
 use alloc::boxed::Box;
-use core::fmt::{Debug, Display, Formatter};
+use core::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use core::result::Result as StdResult;
 #[cfg(feature = "std")]
 use std::backtrace::{Backtrace, BacktraceStatus};
@@ -213,7 +212,7 @@ impl Error {
 }
 
 impl Display for Error {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         if f.alternate() {
             Display::fmt(self.source.as_ref(), f)
         } else {
@@ -224,7 +223,7 @@ impl Display for Error {
 }
 
 impl Debug for Error {
-    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         if f.alternate() {
             Debug::fmt(self.source.as_ref(), f)
         } else {
