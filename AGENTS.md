@@ -522,35 +522,53 @@ Examples:
       - Then: "\n\n" and a Markdown nested list of fixes where each fix must have a format `{number}. {description}` (the numbers should start from 1 for each list of fixes)
       - Else: the exact text "none."
 
-## Guidelines for `serde`
+#### Publishable package
 
-* Every input data type must derive `Serialize` and `Deserialize`
-* Every `Option`-wrapped field must have attributes:
-  * `#[serde(skip_serializing_if = "Option::is_none")]`
-* Every `OffsetDateTime` field must have attributes:
-  * `#[serde(with = "time::serde::rfc3339")]`
-* Every `Option<OffsetDateTime>` field must have attributes:
-  * `#[serde(with = "time::serde::rfc3339::option")]`
-* Every field that stores a physical value must be serialized as a map that includes at least two fields: `value` and `unit`
-  * `value` must be a primitive type
-  * `unit` must be a string that contains the unit name in singular form (for example: "nanosecond", "second", "minute", "kilogram", "meter")
-    * `unit` may contain a prefix (for example: "nano", "kilo")
+A package that has a remote whose name contains `public` or `pre-public` and ends with `template`.
 
-## CLI guidelines
+### Guidelines for `serde`
 
-### Dependencies
+#### Requirements
 
-* `clap` (features: at least "derive", "env")
-* `tokio` (features: at least "macros", "rt", "rt-multi-thread")
-* `errgonomic`
-* `thiserror`
+- Every input data type must derive `Serialize` and `Deserialize`
+- Every `Option`-wrapped field must have attributes:
+  - `#[serde(skip_serializing_if = "Option::is_none")]`
+- Every `OffsetDateTime` field must have attributes:
+  - `#[serde(with = "time::serde::rfc3339")]`
+- Every `Option<OffsetDateTime>` field must have attributes:
+  - `#[serde(with = "time::serde::rfc3339::option")]`
 
-### File layout and required items
+#### Notes
 
-#### File `src/main.rs`
+- It is recommended to use `serde_with` to reduce the code size by avoiding custom `Serialize`/`Deserialize` impls
 
-* Must define a `main` entrypoint
-* Must define a `verify_cli` test for the top-level command exactly as in the example below (with `debug_assert`)
+### Guidelines for `clap`
+
+#### Requirements
+
+- For each enum in project:
+  - If enum has only unit variants and doesn't implement `Error`
+    - Then: it must derive `ValueEnum` with `#[value(rename_all = "kebab-case")]`
+- For each field in a type that derives `Parser`:
+  - If this field's type is local:
+    - Then: this type must implement `FromStr`
+      - Rationale: `clap` parses types that implement `FromStr` directly without `value_parser`
+
+### CLI guidelines
+
+#### Dependencies
+
+- `clap` (features: at least "derive", "env")
+- `tokio` (features: at least "macros", "rt", "rt-multi-thread")
+- `errgonomic`
+- `thiserror`
+
+#### File layout and required items
+
+##### File `src/main.rs`
+
+- Must define a `main` entrypoint
+- Must define a `verify_cli` test for the top-level command exactly as in the example below (with `debug_assert`)
 
 Example:
 
@@ -572,12 +590,14 @@ fn verify_cli() {
     use clap::CommandFactory;
     Command::command().debug_assert();
 }
-````
+```
 
-#### File `src/command.rs`
+##### File `src/command.rs`
 
-* Must define a [command-like struct](#command-like-struct) named `Command`
-* Must define a [subcommand-like enum](#subcommand-like-enum) named `Subcommand`
+- Must define a [command-like struct](#command-like-struct) named `Command`
+  - Must have attributes:
+    - `#[command(author, version, about, propagate_version = true, flatten_help = true, disable_help_subcommand = true)]`
+- Must define a [subcommand-like enum](#subcommand-like-enum) named `Subcommand`
 
 Example:
 
@@ -588,7 +608,7 @@ use errgonomic::map_err;
 use thiserror::Error;
 
 #[derive(clap::Parser, Debug)]
-#[command(author, version, about, propagate_version = true)]
+#[command(author, version, about, propagate_version = true, flatten_help = true, disable_help_subcommand = true)]
 pub struct Command {
     #[command(subcommand)]
     subcommand: Subcommand,
@@ -622,73 +642,326 @@ mod print_command;
 pub use print_command::*;
 ```
 
-### Definitions
+#### Definitions
 
-#### Command-like struct
+##### Command-like struct
 
 A struct that contains fields for CLI arguments.
 
-* Must have a name that is a concatenation of all command names leading up to and including this command name, and ends with `Command` (see example above)
-* Must derive `clap::Parser`
-* Must be attached to a parent module: if it's a top-level command: `src/lib.rs`, else: `src/command.rs`
-* May contain a `subcommand` field annotated with `#[command(subcommand)]`
-* Must have a `pub async fn run`
-  * Must return a `Result` with `ExitCode`
-  * If it contains a `subcommand` field: must match on `subcommand` and call `run` of each command
+- Must have a name that is a concatenation of all command names leading up to and including this command name, and ends with `Command` (see example above)
+- Must have at least the following attributes:
+  - `derive`
+    - Must contain at least:
+      - `Parser` (`use clap::Parser`)
+  - `command`
+    - Must contain at least:
+      - `flatten_help = true`
+- Must be attached to a parent module: if it's a top-level command: `src/lib.rs`, else: `src/command.rs`
+- For each field:
+  - If the field has a collection type (e.g. `Vec`), then it must have attribute `num_args = 1..`
+- May contain a `subcommand` field annotated with `#[command(subcommand)]`
+- Must have a `pub async fn run`
+  - Must return a `Result` with `ExitCode`
+  - If it contains a `subcommand` field: must match on `subcommand` and call `run` of each command
 
 Command example:
 
-* Name: `DbDownloadYcombinatorStartupsCommand`
-* File: `src/command/db_download_ycombinator_startups_command.rs` (attached to `src/command.rs`)
-* Shell command: `cargo run -- db download ycombinator-startups`
+- Name: `DbDownloadYcombinatorStartupsCommand`
+- File: `src/command/db_download_ycombinator_startups_command.rs` (attached to `src/command.rs`)
+- Shell command: `cargo run -- db download ycombinator-startups`
 
-#### Subcommand-like enum
+##### Subcommand-like enum
 
 An enum that contains variants for CLI subcommands.
 
-* Must have a name that is a concatenation of all command names leading up to and including this command name, and ends with `Subcommand` (see example above)
-* Must derive `clap::Subcommand`
-* Must be located in the same file as its parent command struct
-* Each variant must be a tuple variant containing exactly one command
+- Must have a name that is a concatenation of all command names leading up to and including this command name, and ends with `Subcommand` (see example above)
+- Must have at least the following attributes:
+  - `derive`
+    - Must contain at least:
+      - `Subcommand` (`use clap::Subcommand`)
+- Must be located in the same file as its parent command struct
+- Each variant must be a tuple variant containing exactly one command
 
 Subcommand example:
 
-* Name: `DbDownloadSubcommand`
-* File: `src/cli/db_command/db_download_command.rs` (same file as its parent `DbDownloadCommand`)
+- Name: `DbDownloadSubcommand`
+- File: `src/cli/db_command/db_download_command.rs` (same file as its parent `DbDownloadCommand`)
 
-#### Proxy command-like struct
+##### Proxy command-like struct
 
 A [command-like struct](#command-like-struct) that has a `subcommand` field and calls `run` on each subcommand.
 
 Proxy command example:
 
-* Name: `DbCommand`
-* File: `src/command/db_command.rs` (attached to `src/command.rs`)
+- Name: `DbCommand`
+- File: `src/command/db_command.rs` (attached to `src/command.rs`)
+
+## Project info
+
+### `git remote`
+
+```shell
+origin
+repoconf-rust-pre-public-lib-template
+```
 
 ## Project files
+
+### mise.toml
+
+```toml
+min_version = "2026.7.13"
+
+[settings]
+idiomatic_version_file_enable_tools = ["rust"]
+task.output = "keep-order"
+
+[tools]
+node = "24.15.0"
+deno = "1.46.1"
+fnox = "1.33.1"
+fd = "10.4.2"
+"github:ewhauser/shuck" = "0.2.2"
+"aqua:rvben/rumdl" = "0.1.0"
+"npm:@commitlint/config-conventional" = "19.6.0"
+"npm:@commitlint/cli" = "19.6.0"
+"npm:@commitlint/types" = "19.5.0"
+"npm:skills" = "1.5.24"
+"cargo:https://github.com/DenisGorbachev/cargo-insert-docs" = { version = "rev:9bccf15cc367a50d2652b0eaf5da7faf5929c666", crate = "cargo-insert-docs", locked = true }
+"cargo:cargo-hack" = "0.6.33"
+"cargo:cargo-nextest" = "0.9.145"
+"cargo:cargo-expand" = "1.0.114"
+"cargo:taplo-cli" = "0.10.0"
+"cargo:sd" = "1.0.0"
+
+[hooks]
+postinstall = { task = "git:install-hooks" }
+
+[env]
+SHUCK_CACHE_DIR = "{{config_root}}/.cache"
+
+[tasks."build"]
+run = "cargo build --workspace"
+
+[tasks."check"]
+depends = ["cargo:validate-config"]
+run = [{ tasks = ["lint", "test"] }]
+
+[tasks."test"]
+depends = ["test:code", "test:docs"]
+
+[tasks."lint"]
+depends = ["lint:name", "lint:configs", "lint:code", "lint:code:style", "lint:shell", "lint:docs", "lint:reports"]
+
+[tasks."lint:name"]
+run = [{ task = "fix:name", args = ["--check"] }]
+
+[tasks."lint:configs"]
+depends = ["lint:configs:cargo", "lint:configs:fnox"]
+
+[tasks."lint:configs:cargo"]
+run = [{ task = "fix:cargo", args = ["--check"] }]
+
+[tasks."lint:configs:fnox"]
+run = [{ task = "fix:fnox" }]
+
+[tasks."lint:code"]
+run = "cargo clippy --locked --workspace --all-targets --all-features -- -D warnings"
+
+[tasks."lint:code:style"]
+run = "cargo fmt --all -- --check"
+
+[tasks."lint:shell"]
+run = '''shuck --config "lint.source-paths = ['$HOME']" check .'''
+
+[tasks."lint:docs"]
+run = "rumdl check"
+
+[tasks."test:code"]
+run = "fnox --profile test exec --replace -- cargo nextest run --locked --workspace --all-features --no-tests warn"
+
+[tasks."test:code:integration"]
+# see also: "agent:test:code:integration"
+# `--test-threads 1` because integration tests must be run sequentially
+run = [{ task = "test:code", args = ["--ignore-default-filter", "--max-fail", "1", "--test-threads", "1", "integration_tests::"] }]
+
+[tasks."test:code:slow"]
+# see also: "agent:test:code:slow"
+# `--test-threads` is omitted because slow tests may be run in parallel
+run = [{ task = "test:code", args = ["--ignore-default-filter", "--max-fail", "1", "slow_tests::"] }]
+
+[tasks."test:docs"]
+env = { RUSTDOCFLAGS = "-D warnings" }
+run = "cargo test --locked --workspace --doc --all-features --no-fail-fast --quiet"
+
+[tasks."pre-commit"]
+alias = "pre-merge-commit"
+run = [{ task = "git:validate-commit" }]
+
+[tasks."commit-msg"]
+run = 'mise run --output interleave commitlint -- --edit "$@"'
+
+[tasks."fix"]
+depends = ["fix:code", "fix:aux"]
+
+[tasks."fix:aux"]
+depends = ["fix:configs", "fix:docs", "fix:agents", "fix:readme"]
+
+[tasks."fix:configs"]
+depends = ["fix:cargo", "fix:fnox"]
+
+[tasks."fix:code"]
+depends = ["fix:name", "fix:code:style", "fix:shell"]
+
+[tasks."fix:shell"]
+run = '''shuck --config "lint.source-paths = ['$HOME']" check --fix .'''
+
+[tasks."fix:code:warnings"]
+depends = ["fix:cargo"]
+# second pass is needed because "cargo clippy --fix" exits with 0 even if some warnings remain
+env = { __CARGO_FIX_YOLO = 'yeah' }
+run = [
+    "cargo clippy --workspace --all-targets --all-features --fix --allow-dirty --allow-staged",
+    { task = "lint:code" },
+]
+
+[tasks."fix:code:style"]
+# Run after `fix:code:warnings` because both tasks modify the same code files.
+depends = ["fix:code:warnings"]
+run = "cargo fmt --all"
+
+[tasks."fix:docs"]
+depends = ["fix:agents", "fix:readme"]
+# use `rumdl check --fix` instead of `rumdl fmt` because `rumdl check --fix` exits with 1 if errors remain (since v0.1.0)
+run = "rumdl check --fix"
+
+[tasks."fix:agents"]
+# "fix:agents" depends on "fix:code" because it reads the code files
+depends = ["fix:name", "fix:configs", "fix:code"]
+run = [{ task = "gen:agents" }]
+
+[tasks."gen:readme"]
+run = "./README.ts"
+
+[tasks."gen:agents"]
+run = "./AGENTS.ts"
+
+[tasks."commitlint"]
+run = "commitlint --extends \"$(mise where npm:@commitlint/config-conventional)/node_modules/@commitlint/config-conventional/lib/index.js\""
+
+[tasks."agent:docs:list"]
+run = "[ -d .agents/docs ] && find .agents/docs -type f -print || true"
+output = "interleave"
+quiet = true
+
+[tasks."agent:on:stop"]
+depends = ["cargo:validate-config", "fix:shell"]
+run = [{ task = "fix" }, { task = "agent:test" }]
+
+[tasks."agent:test"]
+depends = ["agent:test:code", "agent:test:code:integration", "agent:test:code:slow", "test:docs"]
+
+[tasks."agent:test:code"]
+# don't include `--fail-fast` because it's better to let the agent see all failures
+# reduce output to save tokens
+run = [{ task = "test:code", args = ["--cargo-quiet", "--show-progress", "none", "--no-input-handler", "--status-level", "fail", "--final-status-level", "flaky", "--no-fail-fast"] }]
+
+[tasks."agent:test:code:integration"]
+# see also: "test:code:integration"
+# `--test-threads 1` because integration tests must be run sequentially
+run = [{ task = "test:code", args = ["--cargo-quiet", "--show-progress", "none", "--no-input-handler", "--status-level", "fail", "--final-status-level", "flaky", "--ignore-default-filter", "--max-fail", "1", "--test-threads", "1", "integration_tests::"] }]
+
+[tasks."agent:test:code:slow"]
+# see also: "test:code:slow"
+# `--test-threads` is omitted because slow tests may be run in parallel
+run = [{ task = "test:code", args = ["--cargo-quiet", "--show-progress", "none", "--no-input-handler", "--status-level", "fail", "--final-status-level", "flaky", "--ignore-default-filter", "--max-fail", "1", "slow_tests::"] }]
+```
+
+### fnox.toml
+
+```toml
+#:schema https://fnox.jdx.dev/schema.json
+
+if_missing = "error"
+env = "exec"
+
+[providers]
+keychain = { type = "keychain", service = "helpful" }
+pass = { type = "password-store", prefix = "helpful/" }
+age = { type = "age", recipients = [
+    "age1sf4r4amev2svqr6llwg8hgtz9n7p5qdh7hh0mavcshzfrmgfduksnq3hql",
+    "age1605gsnxpe536sprwccyumq74veg0g80u55n8ggems0t8deau6qdsfnq3m3"
+] }
+```
 
 ### Cargo.toml
 
 ```toml
-[package]
-name = "helpful"
+[workspace]
+resolver = "3"
+
+[workspace.package]
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85.0"
-description = "Better anyhow::Error with a more descriptive error message"
-license = "Apache-2.0 OR MIT"
 homepage = "https://github.com/DenisGorbachev/helpful"
 repository = "https://github.com/DenisGorbachev/helpful"
-readme = "README.md"
 keywords = ["error", "error-handling", "utils"]
 categories = ["rust-patterns", "development-tools", "no-std"]
+exclude = [
+    ".*",
+    "*.local.*",
+    "doc/dev",
+    "specs",
+    "AGENTS.ts",
+    "CargoMetadata.ts",
+    "README.ts",
+    "AGENTS*.md",
+    "CLAUDE*.md",
+    "deno.lock",
+    "deno.json",
+    "commitlint.config.mjs",
+    "fnox.toml",
+    "mise.toml",
+    "rumdl.toml",
+    "shuck.toml",
+    "rustfmt.toml",
+    ".yolobox"
+]
+
+[workspace.metadata.details]
+name = "helpful"
+title = "Better anyhow::Error with a more descriptive error message"
+readme = { generate = false }
+
+[workspace.lints.rust]
+redundant_imports = "deny"
+unused_import_braces = "deny"
+# unused_qualifications must not be "deny" because our code style has multiple `use Foo::*;`, and some macros (derive_more::Display, strum::Display, strum::EnumString) produce code with full qualifications
+# unused_qualifications = "deny"
+
+[workspace.lints.clippy]
+absolute_paths = "deny"
+arithmetic_side_effects = "deny"
+
+[package]
+name = "helpful"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Better anyhow::Error with a more descriptive error message"
+license = "Apache-2.0 OR MIT"
+homepage.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+exclude.workspace = true
 
 [package.metadata.details]
 title = "Better anyhow::Error with a more descriptive error message"
-tagline = ""
-summary = ""
-announcement = ""
-readme = { generate = false }
+
+[lints]
+workspace = true
 
 [dependencies]
 tracing-error = "0.2.0"
@@ -709,18 +982,6 @@ std = []
 [[example]]
 name = "simple_helpful"
 required-features = ["std"]
-```
-
-### fnox.toml
-
-```toml
-#:schema https://fnox.jdx.dev/schema.json
-
-if_missing = "error"
-
-[providers]
-keychain = { type = "keychain", service = "helpful" }
-pass = { type = "password-store", prefix = "helpful/" }
 ```
 
 ### src/lib.rs
@@ -878,18 +1139,14 @@ pass = { type = "password-store", prefix = "helpful/" }
 //! [`tracing_error::TracedError<E>`]: https://docs.rs/tracing-error/latest/tracing_error/struct.TracedError.html
 //!
 
-#![cfg_attr(not(test), deny(unused_crate_dependencies))]
 #![cfg_attr(not(feature = "std"), no_std)]
-#![deny(clippy::arithmetic_side_effects)]
-#![cfg_attr(not(test), deny(unused_crate_dependencies))]
 
 extern crate alloc;
 extern crate core;
-#[cfg(feature = "std")]
-extern crate std;
 
+#[cfg(not(feature = "std"))]
 use alloc::boxed::Box;
-use core::fmt::{Debug, Display, Formatter};
+use core::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use core::result::Result as StdResult;
 #[cfg(feature = "std")]
 use std::backtrace::{Backtrace, BacktraceStatus};
@@ -944,7 +1201,7 @@ impl Error {
 }
 
 impl Display for Error {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         if f.alternate() {
             Display::fmt(self.source.as_ref(), f)
         } else {
@@ -955,7 +1212,7 @@ impl Display for Error {
 }
 
 impl Debug for Error {
-    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         if f.alternate() {
             Debug::fmt(self.source.as_ref(), f)
         } else {
